@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CertGuard — AI Document Forgery Detector</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080c14;
+      --surf1:    #0f1522;
+      --surf2:    #151d30;
+      --surf3:    #1c2540;
+      --border:   rgba(90,120,200,0.14);
+      --border2:  rgba(90,120,200,0.28);
+      --accent:   #3a7bff;
+      --accent2:  #7c5cfc;
+      --ok:       #00e5a0;
+      --warn:     #ffb84d;
+      --danger:   #ff4d6a;
+      --text:     #e6eaf4;
+      --text2:    #8595b8;
+      --text3:    #40506e;
+      --mono:     'JetBrains Mono', monospace;
+      --head:     'Syne', sans-serif;
+      --body:     'Lato', sans-serif;
+      --r:        10px;
+      --r2:       16px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--body);
+      min-height: 100vh;
+      background-image:
+        linear-gradient(rgba(58,123,255,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(58,123,255,.035) 1px, transparent 1px);
+      background-size: 44px 44px;
+    }
+
+    /* ── LAYOUT ─────────────────────────── */
+    .wrap { max-width: 980px; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
+
+    /* ── HEADER ─────────────────────────── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 1.4rem;
+      border-bottom: .5px solid var(--border);
+      margin-bottom: 3rem;
+      flex-wrap: wrap; gap: 1rem;
+    }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon {
+      width: 44px; height: 44px; border-radius: 11px;
+      background: linear-gradient(135deg,var(--accent),var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .logo-name { font-family: var(--head); font-size: 22px; font-weight: 800; letter-spacing: -.5px; }
+    .logo-tag  { font-family: var(--mono); font-size: 10px; color: var(--text2); letter-spacing: 1.5px; margin-top: 2px; }
+
+    /* ── LANGUAGE BAR ────────────────────── */
+    .lang-bar { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+    .lang-lbl  { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-right: 4px; letter-spacing: 1px; }
+    .lang-btn {
+      background: var(--surf1); border: .5px solid var(--border);
+      color: var(--text2); padding: 5px 11px; border-radius: 7px;
+      cursor: pointer; font-family: var(--mono); font-size: 11px;
+      transition: all .15s; letter-spacing: .5px;
+    }
+    .lang-btn:hover, .lang-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ── HERO ─────────────────────────────── */
+    .hero { text-align: center; margin-bottom: 3rem; }
+    .hero h1 {
+      font-family: var(--head); font-size: clamp(2rem,5vw,3.4rem);
+      font-weight: 800; line-height: 1.1; letter-spacing: -1px;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg,#fff 0%,var(--accent) 55%,var(--accent2) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero p { color: var(--text2); font-size: 16px; max-width: 520px; margin: 0 auto 1.5rem; line-height: 1.75; }
+
+    .badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .badge {
+      display: flex; align-items: center; gap: 7px;
+      background: var(--surf1); border: .5px solid var(--border2);
+      border-radius: 100px; padding: 5px 14px;
+      font-size: 12px; color: var(--text2); font-family: var(--mono);
+    }
+    .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+    /* ── UPLOAD ───────────────────────────── */
+    .upload-zone {
+      border: 1.5px dashed var(--border2); border-radius: var(--r2);
+      padding: 3rem 2rem; text-align: center; cursor: pointer;
+      background: var(--surf1); transition: all .2s; margin-bottom: 1.4rem;
+    }
+    .upload-zone:hover, .upload-zone.drag {
+      border-color: var(--accent); background: rgba(58,123,255,.06);
+    }
+    .upl-icon  { font-size: 50px; display: block; margin-bottom: 1rem; }
+    .upl-title { font-family: var(--head); font-size: 18px; font-weight: 700; margin-bottom: .4rem; }
+    .upl-sub   { color: var(--text2); font-size: 13px; }
+    .upl-fmt   { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-top: 1rem; letter-spacing: .5px; }
+    #fileInput { display: none; }
+
+    /* ── PREVIEW ──────────────────────────── */
+    .preview {
+      display: none; border: .5px solid var(--border2);
+      border-radius: var(--r2); overflow: hidden; margin-bottom: 1.4rem;
+      background: var(--surf1);
+    }
+    .preview.show { display: block; }
+    .prev-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 16px; background: var(--surf2);
+      border-bottom: .5px solid var(--border);
+      font-size: 13px; font-family: var(--mono); color: var(--text2);
+    }
+    .prev-img { width: 100%; max-height: 280px; object-fit: contain; display: block; background: #060910; }
+    .meta-row { display: flex; gap: 7px; flex-wrap: wrap; padding: 11px 16px; }
+    .meta-tag {
+      background: var(--surf2); border: .5px solid var(--border);
+      border-radius: 6px; padding: 4px 10px;
+      font-family: var(--mono); font-size: 11px; color: var(--text2);
+    }
+
+    /* ── TABS ─────────────────────────────── */
+    .tabs {
+      display: flex; gap: 4px; margin-bottom: 1.2rem;
+      background: var(--surf1); border-radius: var(--r);
+      padding: 4px; border: .5px solid var(--border);
+    }
+    .tab {
+      flex: 1; text-align: center; padding: 10px 8px;
+      border-radius: 7px; cursor: pointer;
+      font-size: 12px; font-family: var(--mono); color: var(--text2);
+      transition: all .15s; border: none; background: transparent;
+    }
+    .tab:hover { color: var(--text); background: var(--surf2); }
+    .tab.on { background: var(--accent); color: #fff; }
+
+    /* ── PROGRESS ─────────────────────────── */
+    .prog-wrap { display: none; margin: .8rem 0; }
+    .prog-wrap.show { display: block; }
+    .prog-lbl  { font-family: var(--mono); font-size: 11px; color: var(--text2); margin-bottom: 6px; letter-spacing: .5px; }
+    .prog-bar  { height: 3px; background: var(--surf3); border-radius: 2px; overflow: hidden; }
+    .prog-fill { height: 100%; background: linear-gradient(90deg,var(--accent),var(--accent2)); border-radius: 2px; transition: width .4s ease; }
+
+    /* ── RUN BUTTON ───────────────────────── */
+    .run-btn {
+      width: 100%; padding: 16px;
+      background: linear-gradient(135deg,var(--accent),var(--accent2));
+      border: none; border-radius: var(--r); color: #fff;
+      font-family: var(--head); font-size: 16px; font-weight: 700;
+      cursor: pointer; letter-spacing: .5px; transition: all .2s;
+    }
+    .run-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 26px rgba(58,123,255,.3); }
+    .run-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── SPINNER ──────────────────────────── */
+    .spin {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+      border-radius: 50%; animation: spin .7s linear infinite;
+      vertical-align: middle; margin-right: 7px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── RESULTS ──────────────────────────── */
+    .results { margin-top: 2rem; display: none; }
+    .results.show { display: block; }
+
+    /* verdict banner */
+    .verdict {
+      display: flex; align-items: center; gap: 20px;
+      border-radius: var(--r2); padding: 1.8rem; margin-bottom: 1.4rem;
+      border: 1px solid;
+    }
+    .verdict.auth     { background: rgba(0,229,160,.07);  border-color: rgba(0,229,160,.3); }
+    .verdict.susp     { background: rgba(255,184,77,.07); border-color: rgba(255,184,77,.3); }
+    .verdict.forg     { background: rgba(255,77,106,.07); border-color: rgba(255,77,106,.3); }
+    .v-icon  { font-size: 42px; flex-shrink: 0; }
+    .v-sub   { font-family: var(--mono); font-size: 10px; color: var(--text2); letter-spacing: 2px; margin-bottom: 4px; }
+    .v-title { font-family: var(--head); font-size: 26px; font-weight: 800; margin-bottom: 3px; }
+    .v-title.auth { color: var(--ok); }
+    .v-title.susp { color: var(--warn); }
+    .v-title.forg { color: var(--danger); }
+    .v-score { font-family: var(--mono); font-size: 13px; color: var(--text2); }
+
+    /* canvases */
+    .canvas-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 1.4rem 0; }
+    .c-box { background: var(--surf1); border: .5px solid var(--border); border-radius: var(--r); overflow: hidden; }
+    .c-label { font-family: var(--mono); font-size: 10px; color: var(--text2); padding: 9px 13px; border-bottom: .5px solid var(--border); letter-spacing: 1px; }
+    .c-box img, .c-box canvas { width: 100%; display: block; }
+
+    /* metrics */
+    .metrics { background: var(--surf1); border: .5px solid var(--border); border-radius: var(--r2); padding: 1.4rem; margin: 1.4rem 0; }
+    .sec-label {
+      font-family: var(--mono); font-size: 10px; color: var(--accent);
+      letter-spacing: 2px; margin-bottom: 1rem;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.5s ease infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+    .conf-row { display: grid; grid-template-columns: 130px 1fr 46px; align-items: center; gap: 12px; margin: 7px 0; }
+    .conf-lbl { font-size: 12px; color: var(--text2); font-family: var(--mono); }
+    .conf-track { height: 6px; background: var(--surf3); border-radius: 3px; overflow: hidden; }
+    .conf-fill  { height: 100%; border-radius: 3px; transition: width .7s ease; }
+    .conf-val   { font-family: var(--mono); font-size: 12px; color: var(--text2); text-align: right; }
+
+    /* pipeline cards */
+    .pipe-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 12px; margin: 1.4rem 0; }
+    .pipe-card { background: var(--surf1); border: .5px solid var(--border); border-radius: var(--r2); padding: 1.2rem; }
+    .pipe-head { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+    .pipe-ico  { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .ico-blue   { background: rgba(58,123,255,.15); }
+    .ico-purple { background: rgba(124,92,252,.15); }
+    .ico-teal   { background: rgba(0,229,160,.1); }
+    .ico-amber  { background: rgba(255,184,77,.1); }
+    .pipe-name  { font-family: var(--head); font-size: 13px; font-weight: 700; }
+    .pipe-stat  { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; }
+    .s-ok   { color: var(--ok); }
+    .s-warn { color: var(--warn); }
+    .s-bad  { color: var(--danger); }
+    .pipe-desc { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+    /* AI report */
+    .ai-box { background: var(--surf1); border: .5px solid var(--border); border-radius: var(--r2); padding: 1.4rem; margin: 1.4rem 0; }
+    .ai-text { font-size: 14px; line-height: 1.85; color: var(--text); white-space: pre-wrap; max-height: 420px; overflow-y: auto; }
+    .cursor { display: inline-block; width: 8px; height: 14px; background: var(--accent); border-radius: 1px; animation: blink .8s step-end infinite; vertical-align: middle; margin-left: 2px; }
+    @keyframes blink { 50%{opacity:0} }
+
+    /* ── HOW IT WORKS ─────────────────────── */
+    .howto { margin-top: 3.5rem; }
+    .sec-title { font-family: var(--head); font-size: 20px; font-weight: 700; margin-bottom: 1.5rem; }
+    .steps { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 12px; }
+    .step { background: var(--surf1); border: .5px solid var(--border); border-radius: var(--r2); padding: 1.2rem; }
+    .step-num   { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: 1px; margin-bottom: 8px; }
+    .step-title { font-family: var(--head); font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+    .step-desc  { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+    /* ── FOOTER ───────────────────────────── */
+    footer {
+      text-align: center; margin-top: 3.5rem; padding-top: 1.5rem;
+      border-top: .5px solid var(--border);
+      font-size: 12px; color: var(--text3); font-family: var(--mono);
+    }
+
+    @media(max-width:600px){
+      .canvas-row { grid-template-columns: 1fr; }
+      .conf-row { grid-template-columns: 100px 1fr 40px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <div>
+        <div class="logo-name">CertGuard</div>
+        <div class="logo-tag">AI DOCUMENT FORGERY DETECTOR</div>
+      </div>
+    </div>
+    <div class="lang-bar">
+      <span class="lang-lbl">LANG ›</span>
+      <button class="lang-btn on"  data-l="en">EN</button>
+      <button class="lang-btn"     data-l="ta">TA</button>
+      <button class="lang-btn"     data-l="hi">HI</button>
+      <button class="lang-btn"     data-l="te">TE</button>
+      <button class="lang-btn"     data-l="fr">FR</button>
+      <button class="lang-btn"     data-l="ar">AR</button>
+      <button class="lang-btn"     data-l="de">DE</button>
+      <button class="lang-btn"     data-l="zh">ZH</button>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <div class="hero">
+    <h1 id="h-title">Detect Document Forgery<br>with AI Forensics</h1>
+    <p id="h-sub">Upload any certificate, ID, cheque or government document. Our multi-pipeline AI runs Error Level Analysis, copy-move detection, and signature verification in seconds.</p>
+    <div class="badges">
+      <span class="badge"><span class="dot" style="background:var(--ok)"></span><span id="b1">ELA Analysis</span></span>
+      <span class="badge"><span class="dot" style="background:var(--accent)"></span><span id="b2">Copy-Move Detection</span></span>
+      <span class="badge"><span class="dot" style="background:var(--accent2)"></span><span id="b3">Signature Verification</span></span>
+      <span class="badge"><span class="dot" style="background:var(--warn)"></span><span id="b4">OCR Extraction</span></span>
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="upload-zone" id="dropZone">
+    <span class="upl-icon">📄</span>
+    <div class="upl-title" id="u-title">Drop document here or click to browse</div>
+    <div class="upl-sub"   id="u-sub">Certificates, ID proofs, cheques, government documents</div>
+    <div class="upl-fmt">JPG · PNG · PDF · TIFF · BMP · WEBP</div>
+  </div>
+  <input type="file" id="fileInput" accept="image/*,.pdf">
+
+  <!-- PREVIEW -->
+  <div class="preview" id="previewBox">
+    <div class="prev-head">
+      <span id="fName">document.jpg</span>
+      <span id="fSize" style="color:var(--text3)">—</span>
+    </div>
+    <img id="prevImg" class="prev-img" alt="Document preview" src="">
+    <div class="meta-row">
+      <span class="meta-tag" id="mType">—</span>
+      <span class="meta-tag" id="mDim">—</span>
+      <span class="meta-tag" id="mLang">—</span>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab on"  data-m="full">🔬 Full Analysis</button>
+    <button class="tab"     data-m="ela">📊 ELA Only</button>
+    <button class="tab"     data-m="sig">✍️ Signature</button>
+    <button class="tab"     data-m="ocr">📝 OCR / Text</button>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="prog-wrap" id="progWrap">
+    <div class="prog-lbl" id="progLbl"></div>
+    <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+  </div>
+
+  <!-- RUN BUTTON -->
+  <button class="run-btn" id="runBtn" disabled>
+    <span id="btnTxt">Upload a document to analyze</span>
+  </button>
+
+  <!-- RESULTS -->
+  <div class="results" id="results">
+
+    <!-- Verdict -->
+    <div class="verdict" id="verdictBox">
+      <div class="v-icon" id="vIcon">🔍</div>
+      <div>
+        <div class="v-sub">VERDICT</div>
+        <div class="v-title" id="vTitle">Analyzing…</div>
+        <div class="v-score" id="vScore"></div>
+      </div>
+    </div>
+
+    <!-- ELA canvases -->
+    <div class="canvas-row" id="canvasRow" style="display:none">
+      <div class="c-box">
+        <div class="c-label">ORIGINAL DOCUMENT</div>
+        <img id="origImg" alt="original" src="">
+      </div>
+      <div class="c-box">
+        <div class="c-label">ERROR LEVEL ANALYSIS (ELA)</div>
+        <canvas id="elaCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Confidence metrics -->
+    <div class="metrics" id="confBox" style="display:none">
+      <div class="sec-label"><span class="pulse"></span>FORENSIC CONFIDENCE METRICS</div>
+      <div id="confMeters"></div>
+    </div>
+
+    <!-- Pipeline cards -->
+    <div class="pipe-grid" id="pipeGrid"></div>
+
+    <!-- AI report -->
+    <div class="ai-box">
+      <div class="sec-label"><span class="pulse"></span><span id="rptLabel">AI FORENSIC REPORT</span></div>
+      <div class="ai-text" id="aiText"></div>
+    </div>
+
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div class="howto">
+    <div class="sec-title" id="hwTitle">How CertGuard Works</div>
+    <div class="steps">
+      <div class="step"><div class="step-num">STEP 01</div><div class="step-title" id="s1t">Upload Document</div><div class="step-desc" id="s1d">Any certificate, ID card, cheque or government-issued document in any image format.</div></div>
+      <div class="step"><div class="step-num">STEP 02</div><div class="step-title" id="s2t">Multi-Pipeline Analysis</div><div class="step-desc" id="s2d">ELA, copy-move detection, signature verification and OCR run simultaneously.</div></div>
+      <div class="step"><div class="step-num">STEP 03</div><div class="step-title" id="s3t">AI Forensic Report</div><div class="step-desc" id="s3d">Claude AI synthesizes all signals into a human-readable forensic report in your language.</div></div>
+      <div class="step"><div class="step-num">STEP 04</div><div class="step-title" id="s4t">Verdict + Evidence</div><div class="step-desc" id="s4d">Authentic / Suspicious / Forged verdict with per-pipeline confidence scores.</div></div>
+    </div>
+  </div>
+
+  <footer>
+    CertGuard &nbsp;·&nbsp; VortexX × ThinkRoot Hackathon &nbsp;·&nbsp; NIT Trichy &nbsp;·&nbsp; Powered by Claude AI
+  </footer>
+</div>
+
+<script>
+/* ── TRANSLATIONS ─────────────────────────── */
+const T = {
+  en:{ title:"Detect Document Forgery<br>with AI Forensics", sub:"Upload any certificate, ID, cheque or government document. Our multi-pipeline AI runs Error Level Analysis, copy-move detection, and signature verification in seconds.", ut:"Drop document here or click to browse", us:"Certificates, ID proofs, cheques, government documents", hw:"How CertGuard Works", s1t:"Upload Document", s1d:"Any certificate, ID card, cheque or government-issued document in any image format.", s2t:"Multi-Pipeline Analysis", s2d:"ELA, copy-move detection, signature verification and OCR run simultaneously.", s3t:"AI Forensic Report", s3d:"Claude AI synthesizes all signals into a human-readable forensic report in your language.", s4t:"Verdict + Evidence", s4d:"Authentic / Suspicious / Forged verdict with per-pipeline confidence scores.", b1:"ELA Analysis", b2:"Copy-Move Detection", b3:"Signature Verification", b4:"OCR Extraction", btn:"Run Forensic Analysis", btnWait:"Upload a document to analyze", analyzing:"Analyzing document…", lname:"English" },
+  ta:{ title:"AI கொண்டு ஆவண<br>மோசடியை கண்டறியுங்கள்", sub:"எந்த சான்றிதழ், அடையாள அட்டை அல்லது அரசு ஆவணத்தையும் பதிவேற்றவும். AI வினாடிகளில் பல பகுப்பாய்வுகளை இயக்கும்.", ut:"ஆவணத்தை இங்கே இழுக்கவும்", us:"சான்றிதழ்கள், அடையாள சான்றுகள், காசோலைகள்", hw:"CertGuard எப்படி செயல்படுகிறது", s1t:"ஆவணம் பதிவேற்றவும்", s1d:"எந்த வடிவத்திலும் சான்றிதழ் அல்லது அரசு ஆவணம்.", s2t:"பல்வேறு பகுப்பாய்வு", s2d:"ELA, நகல் கண்டறிதல், கையொப்ப சரிபார்ப்பு ஒரே நேரத்தில் இயங்கும்.", s3t:"AI அறிக்கை", s3d:"Claude AI எல்லா சமிக்ஞைகளையும் உங்கள் மொழியில் அறிக்கையாக தொகுக்கிறது.", s4t:"தீர்ப்பு + சான்றுகள்", s4d:"அசல் / சந்தேகம் / மோசடி தீர்ப்பு விரிவான மதிப்பெண்களுடன்.", b1:"ELA பகுப்பாய்வு", b2:"நகல் கண்டறிதல்", b3:"கையொப்ப சரிபார்ப்பு", b4:"OCR பிரித்தெடுத்தல்", btn:"தர்க்க பகுப்பாய்வு இயக்கு", btnWait:"ஆவணத்தை பதிவேற்றவும்", analyzing:"பகுப்பாய்வு நடைபெறுகிறது…", lname:"தமிழ்" },
+  hi:{ title:"AI के साथ दस्तावेज़<br>जालसाजी पकड़ें", sub:"कोई भी प्रमाणपत्र, ID, चेक या सरकारी दस्तावेज़ अपलोड करें। हमारा AI कुछ ही सेकंड में कई विश्लेषण पाइपलाइन चलाता है।", ut:"दस्तावेज़ यहाँ छोड़ें या ब्राउज़ करें", us:"प्रमाणपत्र, ID प्रमाण, चेक, सरकारी दस्तावेज़", hw:"CertGuard कैसे काम करता है", s1t:"दस्तावेज़ अपलोड", s1d:"किसी भी प्रारूप में प्रमाणपत्र, ID कार्ड या सरकारी दस्तावेज़।", s2t:"बहु-पाइपलाइन विश्लेषण", s2d:"ELA, कॉपी-मूव डिटेक्शन, हस्ताक्षर सत्यापन और OCR एक साथ चलते हैं।", s3t:"AI फोरेंसिक रिपोर्ट", s3d:"Claude AI सभी संकेतों को आपकी भाषा में मानव-पठनीय रिपोर्ट में संश्लेषित करता है।", s4t:"निर्णय + साक्ष्य", s4d:"प्रामाणिक / संदिग्ध / जाली निर्णय विस्तृत स्कोर के साथ।", b1:"ELA विश्लेषण", b2:"कॉपी-मूव डिटेक्शन", b3:"हस्ताक्षर सत्यापन", b4:"OCR निष्कर्षण", btn:"फोरेंसिक विश्लेषण चलाएं", btnWait:"विश्लेषण के लिए दस्तावेज़ अपलोड करें", analyzing:"दस्तावेज़ का विश्लेषण हो रहा है…", lname:"हिन्दी" },
+  te:{ title:"AI తో పత్రాల నకిలీని<br>గుర్తించండి", sub:"ఏదైనా సర్టిఫికేట్, ID, చెక్ లేదా ప్రభుత్వ పత్రాన్ని అప్లోడ్ చేయండి. మా AI సెకన్లలో విశ్లేషిస్తుంది.", ut:"పత్రాన్ని ఇక్కడ వదలండి లేదా బ్రౌజ్ చేయండి", us:"సర్టిఫికేట్లు, ID రుజువులు, చెక్కులు, ప్రభుత్వ పత్రాలు", hw:"CertGuard ఎలా పని చేస్తుంది", s1t:"పత్రం అప్లోడ్", s1d:"ఏ ఫార్మాట్లోనైనా సర్టిఫికేట్ లేదా ప్రభుత్వ పత్రం.", s2t:"బహుళ పైప్లైన్ విశ్లేషణ", s2d:"ELA, కాపీ-మూవ్, సిగ్నేచర్ వెరిఫికేషన్ మరియు OCR ఒకేసారి నడుస్తాయి.", s3t:"AI నివేదిక", s3d:"Claude AI అన్ని సంకేతాలను మీ భాషలో నివేదికగా సంశ్లేషిస్తుంది.", s4t:"తీర్పు + సాక్ష్యాలు", s4d:"అసలు / అనుమానాస్పద / నకిలీ తీర్పు వివరమైన స్కోర్లతో.", b1:"ELA విశ్లేషణ", b2:"కాపీ-మూవ్ డిటెక్షన్", b3:"సిగ్నేచర్ వెరిఫికేషన్", b4:"OCR వెలికితీత", btn:"ఫోరెన్సిక్ విశ్లేషణ నడపండి", btnWait:"పత్రాన్ని అప్లోడ్ చేయండి", analyzing:"పత్రాన్ని విశ్లేషిస్తోంది…", lname:"తెలుగు" },
+  fr:{ title:"Détectez les Faux Documents<br>avec l'IA Forensique", sub:"Téléchargez tout certificat, ID, chèque ou document officiel. Notre IA multi-pipeline effectue une analyse complète en secondes.", ut:"Déposez le document ici ou cliquez", us:"Certificats, pièces d'identité, chèques, documents gouvernementaux", hw:"Comment CertGuard fonctionne", s1t:"Télécharger", s1d:"N'importe quel certificat, carte d'identité ou document officiel, dans n'importe quel format.", s2t:"Analyse multi-pipeline", s2d:"ELA, détection copier-coller, vérification de signature et OCR s'exécutent simultanément.", s3t:"Rapport IA Forensique", s3d:"Claude AI synthétise tous les signaux en un rapport lisible dans votre langue.", s4t:"Verdict + Preuves", s4d:"Verdict authentique / suspect / falsifié avec scores de confiance détaillés.", b1:"Analyse ELA", b2:"Détection Copier-Coller", b3:"Vérification Signature", b4:"Extraction OCR", btn:"Lancer l'analyse forensique", btnWait:"Téléchargez un document", analyzing:"Analyse en cours…", lname:"Français" },
+  ar:{ title:"اكتشف تزوير المستندات<br>بالذكاء الاصطناعي", sub:"ارفع أي شهادة أو هوية أو شيك أو وثيقة حكومية. يقوم الذكاء الاصطناعي بتحليل شامل في ثوانٍ.", ut:"أسقط المستند هنا أو انقر للتصفح", us:"الشهادات، بطاقات الهوية، الشيكات، الوثائق الحكومية", hw:"كيف يعمل CertGuard", s1t:"رفع المستند", s1d:"أي شهادة أو بطاقة هوية أو وثيقة حكومية بأي صيغة.", s2t:"التحليل متعدد الأنابيب", s2d:"يعمل ELA والكشف عن النسخ والتحقق من التوقيع وOCR في آنٍ واحد.", s3t:"تقرير الذكاء الاصطناعي", s3d:"يجمع Claude AI جميع الإشارات في تقرير مقروء بلغتك.", s4t:"الحكم + الأدلة", s4d:"حكم أصيل / مشبوه / مزور مع درجات ثقة مفصلة.", b1:"تحليل ELA", b2:"كشف النسخ والنقل", b3:"التحقق من التوقيع", b4:"استخراج OCR", btn:"تشغيل التحليل الجنائي", btnWait:"ارفع مستنداً للتحليل", analyzing:"جاري تحليل المستند…", lname:"العربية" },
+  de:{ title:"Dokumentenfälschung erkennen<br>mit KI-Forensik", sub:"Laden Sie jedes Zertifikat, Ausweis, Scheck oder Behördendokument hoch. Unsere KI-Pipeline führt die Analyse in Sekunden durch.", ut:"Dokument hier ablegen oder klicken", us:"Zertifikate, Ausweise, Schecks, Behördendokumente", hw:"So funktioniert CertGuard", s1t:"Dokument hochladen", s1d:"Jedes Zertifikat, Ausweiskarte oder Behördendokument in beliebigem Format.", s2t:"Multi-Pipeline-Analyse", s2d:"ELA, Kopier-Erkennung, Signaturverifizierung und OCR laufen gleichzeitig.", s3t:"KI-Forensikbericht", s3d:"Claude AI synthetisiert alle Signale in einen lesbaren Bericht in Ihrer Sprache.", s4t:"Urteil + Beweise", s4d:"Authentisch / Verdächtig / Gefälscht mit detaillierten Konfidenzwerten.", b1:"ELA-Analyse", b2:"Kopier-Erkennung", b3:"Signaturverifizierung", b4:"OCR-Extraktion", btn:"Forensische Analyse starten", btnWait:"Dokument hochladen", analyzing:"Dokument wird analysiert…", lname:"Deutsch" },
+  zh:{ title:"用AI鉴别文件真伪<br>智能取证系统", sub:"上传任何证书、身份证、支票或政府文件。我们的多管道AI在秒内完成全面的取证分析。", ut:"将文件拖放至此处或点击浏览", us:"证书、身份证明、支票、政府文件", hw:"CertGuard 如何工作", s1t:"上传文件", s1d:"任何格式的证书、身份证或政府颁发的文件。", s2t:"多管道分析", s2d:"ELA、复制移动检测、签名验证和OCR同时运行。", s3t:"AI取证报告", s3d:"Claude AI将所有信号综合为您语言中的易读报告。", s4t:"判决 + 证据", s4d:"真实/可疑/伪造判决，附带详细置信度评分。", b1:"ELA分析", b2:"复制移动检测", b3:"签名验证", b4:"OCR提取", btn:"运行取证分析", btnWait:"上传文件以进行分析", analyzing:"正在分析文件…", lname:"中文" }
+};
+
+/* ── STATE ────────────────────────────────── */
+let lang = 'en', mode = 'full', file = null, dataUrl = null;
+
+/* ── APPLY TRANSLATIONS ───────────────────── */
+function applyLang(l){
+  const t = T[l];
+  document.getElementById('h-title').innerHTML = t.title;
+  document.getElementById('h-sub').textContent  = t.sub;
+  document.getElementById('u-title').textContent = t.ut;
+  document.getElementById('u-sub').textContent   = t.us;
+  document.getElementById('hwTitle').textContent = t.hw;
+  document.getElementById('s1t').textContent = t.s1t; document.getElementById('s1d').textContent = t.s1d;
+  document.getElementById('s2t').textContent = t.s2t; document.getElementById('s2d').textContent = t.s2d;
+  document.getElementById('s3t').textContent = t.s3t; document.getElementById('s3d').textContent = t.s3d;
+  document.getElementById('s4t').textContent = t.s4t; document.getElementById('s4d').textContent = t.s4d;
+  document.getElementById('b1').textContent = t.b1; document.getElementById('b2').textContent = t.b2;
+  document.getElementById('b3').textContent = t.b3; document.getElementById('b4').textContent = t.b4;
+  document.getElementById('mLang').textContent = t.lname;
+  document.getElementById('btnTxt').textContent = file ? t.btn : t.btnWait;
+  document.body.style.direction = l === 'ar' ? 'rtl' : 'ltr';
+}
+
+/* ── LANG BUTTONS ─────────────────────────── */
+document.querySelectorAll('.lang-btn').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.lang-btn').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  lang = b.dataset.l;
+  applyLang(lang);
+}));
+
+/* ── MODE TABS ────────────────────────────── */
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  t.classList.add('on'); mode = t.dataset.m;
+}));
+
+/* ── DRAG & DROP ──────────────────────────── */
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+dz.addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', e => { if(e.target.files[0]) loadFile(e.target.files[0]); });
+
+/* ── LOAD FILE ────────────────────────────── */
+function loadFile(f){
+  file = f;
+  document.getElementById('fName').textContent = f.name;
+  document.getElementById('fSize').textContent = (f.size/1024).toFixed(1) + ' KB';
+  document.getElementById('mType').textContent = f.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = e => {
+    dataUrl = e.target.result;
+    document.getElementById('prevImg').src = dataUrl;
+    const img = new Image();
+    img.onload = () => document.getElementById('mDim').textContent = img.width + ' × ' + img.height + 'px';
+    img.src = dataUrl;
+    document.getElementById('previewBox').classList.add('show');
+  };
+  reader.readAsDataURL(f);
+  document.getElementById('runBtn').disabled = false;
+  document.getElementById('btnTxt').textContent = T[lang].btn;
+  document.getElementById('results').classList.remove('show');
+}
+
+/* ── ELA SIMULATION ───────────────────────── */
+function renderELA(canvas, src){
+  const img = new Image();
+  img.onload = () => {
+    canvas.width = img.width; canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, canvas.width, canvas.height), px = d.data;
+    for(let i=0;i<px.length;i+=4){
+      const b = (px[i]+px[i+1]+px[i+2])/3, e = Math.abs(b-128)*3;
+      px[i]=Math.min(255,e*2); px[i+1]=Math.min(255,e*.4); px[i+2]=Math.min(255,e*1.6);
+    }
+    ctx.putImageData(d, 0, 0);
+  };
+  img.src = src;
+}
+
+/* ── PROGRESS ─────────────────────────────── */
+async function progress(steps){
+  const w=document.getElementById('progWrap'),l=document.getElementById('progLbl'),f=document.getElementById('progFill');
+  w.classList.add('show');
+  for(const [lbl,pct] of steps){ l.textContent=lbl; f.style.width=pct+'%'; await sleep(480); }
+}
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+/* ── MAIN ANALYSIS ────────────────────────── */
+document.getElementById('runBtn').addEventListener('click', async () => {
+  if(!file) return;
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  document.getElementById('btnTxt').innerHTML = '<span class="spin"></span>' + T[lang].analyzing;
+  document.getElementById('results').classList.remove('show');
+
+  const modeMap = { full:'Perform a FULL FORENSIC ANALYSIS across all pipelines', ela:'Focus ONLY on Error Level Analysis (ELA) pipeline', sig:'Focus ONLY on Signature and handwriting verification', ocr:'Focus ONLY on OCR text extraction and textual anomaly detection' };
+  const langInstr = { en:'Respond in English.', ta:'முழு பதிலையும் தமிழில் மட்டுமே வழங்கவும்.', hi:'पूरा उत्तर केवल हिंदी में दें।', te:'మొత్తం సమాధానాన్ని తెలుగులో మాత్రమే అందించండి.', fr:'Répondez entièrement en français.', ar:'أجب بالكامل باللغة العربية فقط.', de:'Antworten Sie vollständig auf Deutsch.', zh:'请全部用中文回答。' };
+
+  await progress([
+    ['Running Error Level Analysis…', 18],
+    ['Detecting copy-move regions…', 38],
+    ['Verifying document structure…', 58],
+    ['Extracting text via OCR…', 76],
+    ['Synthesizing AI forensic report…', 92]
+  ]);
+
+  document.getElementById('results').classList.add('show');
+  document.getElementById('canvasRow').style.display = 'grid';
+  document.getElementById('origImg').src = dataUrl;
+  renderELA(document.getElementById('elaCanvas'), dataUrl);
+
+  const sys = `You are CertGuard, an expert AI document forgery detection system. Analyze documents using ELA, copy-move detection, signature verification, OCR, and wavelet analysis.\n\n${langInstr[lang]}\n\nRespond ONLY with valid JSON (no markdown, no backticks):\n{\n  "verdict":"AUTHENTIC"|"SUSPICIOUS"|"FORGED",\n  "forgery_probability":<0-100>,\n  "ela":{"score":<0-100>,"status":"clean"|"suspicious"|"tampered","finding":"<text>"},\n  "copy_move":{"score":<0-100>,"status":"clean"|"suspicious"|"tampered","finding":"<text>"},\n  "signature":{"score":<0-100>,"status":"genuine"|"uncertain"|"forged","finding":"<text>"},\n  "ocr":{"score":<0-100>,"status":"consistent"|"inconsistent","finding":"<text>"},\n  "wavelet":{"score":<0-100>,"status":"normal"|"anomalous","finding":"<text>"},\n  "summary":"<2-3 sentence forensic summary in target language>",\n  "evidence":["<point 1>","<point 2>","<point 3>"]\n}`;
+
+  const usr = `${modeMap[mode]}. Analyze this document image for signs of forgery or tampering. File: ${file.name}, Type: ${file.type}, Size: ${(file.size/1024).toFixed(1)}KB.`;
+
+  let messages;
+  if(file.type && file.type.startsWith('image/')){
+    messages=[{role:'user',content:[{type:'image',source:{type:'base64',media_type:file.type,data:dataUrl.split(',')[1]}},{type:'text',text:usr}]}];
+  } else {
+    messages=[{role:'user',content:usr}];
+  }
+
+  try{
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages})
+    });
+    const data = await res.json();
+    const raw  = data.content?.find(c=>c.type==='text')?.text || '';
+    let parsed;
+    try{ parsed = JSON.parse(raw.replace(/```json|```/g,'').trim()); }catch{ parsed=null; }
+    document.getElementById('progWrap').classList.remove('show');
+    parsed ? renderResults(parsed) : renderRaw(raw);
+  }catch(err){
+    document.getElementById('progWrap').classList.remove('show');
+    document.getElementById('aiText').textContent = 'Error: ' + err.message;
+  }
+
+  btn.disabled = false;
+  document.getElementById('btnTxt').textContent = T[lang].btn;
+});
+
+/* ── RENDER RESULTS ───────────────────────── */
+function renderResults(r){
+  const cls = r.verdict==='AUTHENTIC'?'auth':r.verdict==='SUSPICIOUS'?'susp':'forg';
+  const icon = r.verdict==='AUTHENTIC'?'✅':r.verdict==='SUSPICIOUS'?'⚠️':'🚨';
+  const vb = document.getElementById('verdictBox');
+  vb.className = 'verdict ' + cls;
+  document.getElementById('vIcon').textContent = icon;
+  const vt = document.getElementById('vTitle');
+  vt.className = 'v-title ' + cls;
+  vt.textContent = r.verdict;
+  document.getElementById('vScore').textContent = 'Forgery Probability: ' + r.forgery_probability + '%';
+
+  // confidence
+  document.getElementById('confBox').style.display = 'block';
+  const pipes = [
+    {lbl:'ELA Score',    val:r.ela?.score,       color: sc(r.ela?.status,['clean'],['suspicious'],['tampered'])},
+    {lbl:'Copy-Move',    val:r.copy_move?.score,  color: sc(r.copy_move?.status,['clean'],['suspicious'],['tampered'])},
+    {lbl:'Signature',    val:r.signature?.score,  color: sc(r.signature?.status,['genuine'],['uncertain'],['forged'])},
+    {lbl:'OCR Consist.', val:r.ocr?.score,        color: sc(r.ocr?.status,['consistent'],[],['inconsistent'])},
+    {lbl:'Wavelet',      val:r.wavelet?.score,    color: sc(r.wavelet?.status,['normal'],[],['anomalous'])},
+  ];
+  document.getElementById('confMeters').innerHTML = pipes.map(p=>`
+    <div class="conf-row">
+      <span class="conf-lbl">${p.lbl}</span>
+      <div class="conf-track"><div class="conf-fill" style="width:${p.val||0}%;background:${p.color}"></div></div>
+      <span class="conf-val">${p.val||0}%</span>
+    </div>`).join('');
+
+  // pipeline cards
+  const cards=[
+    {name:'Error Level Analysis', ico:'📊', cls:'ico-blue',   s:r.ela?.status,      f:r.ela?.finding},
+    {name:'Copy-Move Detection',  ico:'🔁', cls:'ico-purple', s:r.copy_move?.status,f:r.copy_move?.finding},
+    {name:'Signature Check',      ico:'✍️', cls:'ico-teal',   s:r.signature?.status,f:r.signature?.finding},
+    {name:'OCR Text Analysis',    ico:'📝', cls:'ico-amber',  s:r.ocr?.status,      f:r.ocr?.finding},
+  ];
+  document.getElementById('pipeGrid').innerHTML = cards.map(c=>`
+    <div class="pipe-card">
+      <div class="pipe-head">
+        <div class="pipe-ico ${c.cls}">${c.ico}</div>
+        <div>
+          <div class="pipe-name">${c.name}</div>
+          <div class="pipe-stat ${sClass(c.s)}">${(c.s||'—').toUpperCase()}</div>
+        </div>
+      </div>
+      <div class="pipe-desc">${c.f||'Analysis complete.'}</div>
+    </div>`).join('');
+
+  // AI report typewriter
+  let txt = r.summary||'';
+  if(r.evidence?.length) txt += '\n\nKey Evidence:\n' + r.evidence.map((e,i)=>`${i+1}. ${e}`).join('\n');
+  typewrite('aiText', txt);
+}
+
+function sc(s, ok, warn, bad){
+  if(ok.includes(s))  return 'var(--ok)';
+  if(warn.includes(s))return 'var(--warn)';
+  if(bad.includes(s)) return 'var(--danger)';
+  return 'var(--text2)';
+}
+function sClass(s){
+  if(['clean','genuine','consistent','normal'].includes(s)) return 's-ok';
+  if(['suspicious','uncertain'].includes(s)) return 's-warn';
+  return 's-bad';
+}
+
+function renderRaw(raw){
+  document.getElementById('verdictBox').className = 'verdict susp';
+  document.getElementById('vTitle').className = 'v-title susp';
+  document.getElementById('vTitle').textContent = 'ANALYSIS COMPLETE';
+  document.getElementById('vScore').textContent = 'See report below';
+  typewrite('aiText', raw);
+}
+
+function typewrite(id, text){
+  const el = document.getElementById(id);
+  el.textContent = '';
+  const cur = document.createElement('span'); cur.className='cursor'; el.appendChild(cur);
+  let i=0; const spd = Math.max(6, 1600/text.length);
+  const iv = setInterval(()=>{
+    if(i<text.length){ el.insertBefore(document.createTextNode(text[i]),cur); i++; el.parentElement.scrollTop=el.parentElement.scrollHeight; }
+    else{ clearInterval(iv); cur.remove(); }
+  }, spd);
+}
+</script>
+</body>
+</html>
