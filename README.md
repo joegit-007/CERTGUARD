@@ -8,7 +8,7 @@ A multilingual, AI-powered document forgery detection web application that uses 
 
 ## 🔗 Live Demo
 
-> 🌐 **[View on ThinkRoot →](https://thinkroot.dev)** *(paste your ThinkRoot link here after deploying)*
+> 🌐 **[View on ThinkRoot →]https://certguard-dashboard-4bnle.thinkroot.app/
 
 ---
 
@@ -128,13 +128,6 @@ Score Range    Verdict
 
 ---
 
-## 👥 Team
-
-| Name | Role |
-|---|---|
-| [Your Name] | Full Stack + AI Integration |
-| [Teammate 2] | Design + Frontend |
-| [Teammate 3] | Research + Testing |
 
 ---
 
