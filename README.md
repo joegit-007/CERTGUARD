@@ -141,6 +141,4 @@ Score Range    Verdict
 
 ---
 
-## 📄 License
 
-MIT © 2026 — VortexX × ThinkRoot Hackathon, NIT Trichy
